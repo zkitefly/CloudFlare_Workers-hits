@@ -53,7 +53,7 @@ export default {
   
       // Generate SVG
       const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="150" height="30"><rect width="150" height="30" fill="#ffffff" /><text x="10" y="20" font-family="Arial" font-size="14" fill="#333">${totalHits} / ${todayHits}</text></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="150" height="30"><rect width="150" height="30" fill="#f0f0f0" /><text x="10" y="20" font-family="Arial" font-size="14" fill="#333">${totalHits} / ${todayHits}</text></svg>
       `;
   
       return new Response(svg, {
