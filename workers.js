@@ -52,20 +52,7 @@ export default {
       const todayHits = (await db.prepare(`SELECT hits FROM daily_hits WHERE tag = ? AND date = ?`).bind(tag, dateStr).first())?.hits || 0;
   
       // Generate SVG
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="150" height="30">
-          <defs>
-            <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:#f0f0f0;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#e6e6e6;stop-opacity:1" />
-            </linearGradient>
-          </defs>
-          <rect width="150" height="30" rx="5" fill="url(#grad)" stroke="#d0d0d0" stroke-width="1"/>
-          <text x="75" y="20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">
-            ${totalHits} / ${todayHits}
-          </text>
-        </svg>
-      `.trim();
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="30"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#f0f0f0;stop-opacity:1" /><stop offset="100%" style="stop-color:#e6e6e6;stop-opacity:1" /></linearGradient></defs><rect width="150" height="30" rx="5" fill="url(#grad)" stroke="#d0d0d0" stroke-width="1"/><text x="75" y="20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">${totalHits} / ${todayHits}</text></svg>`.trim();
 
       return new Response(svg, {
         headers: {
