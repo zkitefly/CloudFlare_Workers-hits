@@ -60,7 +60,11 @@ export default {
         headers: {
           'Content-Type': 'image/svg+xml',
           'Cache-Control': 'no-store',
-          'Access-Control-Allow-Origin': '*'
+          'Access-Control-Allow-Origin': '*',
+          'X-Total-Hits': totalHits.toString(),
+          'X-Today-Hits': todayHits.toString(),
+          'X-Record-Time': currentUTCPlus8Date.toISOString(),
+          'X-Tag': tag
         }
       });
     }
