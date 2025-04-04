@@ -33,6 +33,16 @@ https://your-worker.username.workers.dev/?tag=your-tag&web=true
 - 今日访问量统计
 - 最近30天的访问趋势图表
 
+## 演示
+
+```
+![演示](https://hits.zkitefly.eu.org/?tag=https://github.com/zkitefly/CloudFlare_Workers-hits)
+```
+
+![演示](https://hits.zkitefly.eu.org/?tag=https://github.com/zkitefly/CloudFlare_Workers-hits)
+
+[演示](https://hits.zkitefly.eu.org/?tag=https://github.com/zkitefly/CloudFlare_Workers-hits&web=true)
+
 ## 部署说明
 
 1.拷贝 [workers.js](/workers.js) 的所有完整代码；
