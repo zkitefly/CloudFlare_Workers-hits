@@ -2,6 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const tag = url.searchParams.get('tag');
+    const isWeb = url.searchParams.get('web') === 'true';
 
     if (!tag) {
       return new Response('Tag parameter is required', { status: 400 });
@@ -116,6 +117,81 @@ export default {
     `).bind(tagId, today).first())?.count || 0;
 
     const totalHits = historicalHits + todayHits;
+
+    // Get daily statistics for the last 30 days
+    const dailyStats = await db.prepare(`
+      SELECT date(visit_time) as date, COUNT(*) as count 
+      FROM visits 
+      WHERE tag_id = ? AND date(visit_time) >= date(?, '-30 days')
+      GROUP BY date(visit_time)
+      ORDER BY date(visit_time)
+    `).bind(tagId, today).all();
+
+    if (isWeb) {
+      // HTML template for web view
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>访问统计 - ${tag}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .stats-container { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .chart-container { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        h1 { color: #333; }
+        .stat-box { display: inline-block; padding: 15px; margin: 10px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <h1>访问统计 - ${tag}</h1>
+    <div class="stats-container">
+        <div class="stat-box">
+            <h3>总访问量</h3>
+            <p>${totalHits}</p>
+        </div>
+        <div class="stat-box">
+            <h3>今日访问量</h3>
+            <p>${todayHits}</p>
+        </div>
+    </div>
+    <div class="chart-container">
+        <canvas id="visitsChart"></canvas>
+    </div>
+    <script>
+        const ctx = document.getElementById('visitsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ${JSON.stringify(dailyStats.results.map(row => row.date))},
+                datasets: [{
+                    label: '每日访问量',
+                    data: ${JSON.stringify(dailyStats.results.map(row => row.count))},
+                    fill: false,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>`;
+
+      return new Response(html, {
+        headers: {
+          'Content-Type': 'text/html;charset=UTF-8',
+          'Cache-Control': 'no-store',
+        }
+      });
+    }
 
     // Generate SVG
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="30"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#f0f0f0;stop-opacity:1" /><stop offset="100%" style="stop-color:#e6e6e6;stop-opacity:1" /></linearGradient></defs><rect width="150" height="30" rx="5" fill="url(#grad)" stroke="#d0d0d0" stroke-width="1"/><text x="75" y="20" font-family="Arial, sans-serif" font-size="14" fill="#333" text-anchor="middle">${totalHits} / ${todayHits}</text></svg>`.trim();
