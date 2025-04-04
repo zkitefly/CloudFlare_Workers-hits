@@ -1,8 +1,39 @@
-# CloudFlare_Workers-hits
+# CloudFlare Workers Hits Counter
 
-使用 CloudFlare Workers 的 hits 标签。
+一个基于 Cloudflare Workers 的简单访问计数器。
 
-## 部署
+## 功能特性
+
+- 提供SVG格式的访问计数器图片
+- 支持网页统计视图,展示详细访问数据
+- 自动清理30天前的访问记录
+- 保存历史访问统计数据
+- 支持多个计数器标签
+
+## 使用方法
+
+### 1. 计数器图片
+
+在你需要显示计数器的地方插入以下代码:
+
+```markdown
+![visitors](https://your-worker.username.workers.dev/?tag=your-tag)
+```
+
+### 2. 网页统计视图
+
+访问以下地址查看详细的访问统计信息:
+
+```
+https://your-worker.username.workers.dev/?tag=your-tag&web=true
+```
+
+网页统计视图包含:
+- 总访问量统计
+- 今日访问量统计
+- 最近30天的访问趋势图表
+
+## 部署说明
 
 1.拷贝 [workers.js](/workers.js) 的所有完整代码；
 
@@ -18,28 +49,12 @@
 
 7.完成！
 
-## 使用
+## 注意事项
 
-需要在页面中访问：
+- 访问数据保留最近30天的详细记录
+- 超过30天的数据会被归档为按天统计的形式
+- 建议定期备份数据库
 
-```
-{你的 Worker 地址}?tag={你的标签}
-```
-
-成功则会返回一个 svg 图片，显示访问次数。
-
-```
-{该标签访问总次数} / {该标签当天（UTC+8）访问次数}
-```
-
-## 演示
-
-```
-![演示](https://hits.zkitefly.eu.org/?tag=https://github.com/zkitefly/CloudFlare_Workers-hits)
-```
-
-![演示](https://hits.zkitefly.eu.org/?tag=https://github.com/zkitefly/CloudFlare_Workers-hits)
-
-## 许可证
+## License
 
 [MIT](/LICENSE)
