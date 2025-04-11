@@ -4,14 +4,16 @@ export default {
     const tag = url.searchParams.get('tag');
     const isWeb = url.searchParams.get('web') === 'true';
 
-    if (!tag) {
+    // 修改初始检查逻辑
+    if (!tag && !isWeb) {
       return new Response('Tag parameter is required', { status: 400 });
     }
 
     const currentDate = new Date();
-    const currentUTCDate = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate(), currentDate.getUTCHours(), currentDate.getUTCMinutes(), currentDate.getUTCSeconds()));
-    const currentUTCPlus8Date = new Date(currentUTCDate.getTime() + 8 * 60 * 60 * 1000).toISOString().replace('.000Z', '+08:00');
-    const today = currentUTCPlus8Date.toString().slice(0, 10);
+    const utcTime = currentDate.getTime();
+    const utcPlus8Time = utcTime + (8 * 60 * 60 * 1000);
+    const currentUTCPlus8Date = new Date(utcPlus8Time).toISOString().replace('.000Z', '+08:00');
+    const today = currentUTCPlus8Date.slice(0, 10);
 
     const db = env.DB;
 
@@ -59,6 +61,78 @@ export default {
       )
     `).run();
 
+    // 当没有 tag 且是网页请求时，显示总览页面
+    if (!tag && isWeb) {
+      // 获取所有 tag 的统计数据
+      const allTagsStats = await db.prepare(`
+        SELECT 
+          t.tag,
+          COALESCE(
+            (SELECT SUM(count) FROM history_stats WHERE tag_id = t.id), 
+            0
+          ) + COALESCE(
+            (SELECT COUNT(*) FROM visits WHERE tag_id = t.id AND date(visit_time) = ?),
+            0
+          ) as total_hits,
+          COALESCE(
+            (SELECT COUNT(*) FROM visits WHERE tag_id = t.id AND date(visit_time) = ?),
+            0
+          ) as today_hits
+        FROM tags t
+        ORDER BY total_hits DESC
+      `).bind(today, today).all();
+
+      // HTML template for overview page
+      const overviewHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>访问统计总览</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .stats-container { background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f8f8; }
+        tr:hover { background-color: #f5f5f5; }
+        .tag-link { color: #0066cc; text-decoration: none; }
+        .tag-link:hover { text-decoration: underline; }
+        h1 { color: #333; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>访问统计总览</h1>
+    <div class="stats-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>标签</th>
+                    <th>总访问量</th>
+                    <th>今日访问量</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${allTagsStats.results.map(stat => `
+                    <tr>
+                        <td><a class="tag-link" href="?tag=${encodeURIComponent(stat.tag)}&web=true">${stat.tag}</a></td>
+                        <td>${stat.total_hits}</td>
+                        <td>${stat.today_hits}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>`;
+
+      return new Response(overviewHtml, {
+        headers: {
+          'Content-Type': 'text/html;charset=UTF-8',
+          'Cache-Control': 'no-store'
+        }
+      });
+    }
+
     // Get or insert tag
     let tagInfo = await db.prepare(`SELECT id, last_cleanup_date FROM tags WHERE tag = ?`).bind(tag).first();
     if (!tagInfo) {
@@ -70,7 +144,7 @@ export default {
     // Check if cleanup is needed (once per day)
     if (tagInfo.last_cleanup_date !== today) {
       // Calculate date 30 days ago
-      const thirtyDaysAgo = new Date(currentUTCDate.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const thirtyDaysAgo = new Date(utcPlus8Time - 30 * 24 * 60 * 60 * 1000)
         .toISOString()
         .slice(0, 10);
 
