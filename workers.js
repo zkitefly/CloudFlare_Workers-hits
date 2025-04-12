@@ -4,7 +4,6 @@ export default {
     const tag = url.searchParams.get('tag');
     const isWeb = url.searchParams.get('web') === 'true';
 
-    // 修改初始检查逻辑
     if (!tag && !isWeb) {
       return new Response('Tag parameter is required', { status: 400 });
     }
@@ -60,26 +59,36 @@ export default {
       )
     `).run();
 
-    // 当没有 tag 且是网页请求时，显示总览页面
     if (!tag && isWeb) {
-      // 获取所有 tag 的统计数据
       const allTagsStats = await db.prepare(`
         SELECT 
           t.tag,
-          COALESCE(
-            (SELECT SUM(count) FROM history_stats WHERE tag_id = t.id), 
-            0
-          ) + COALESCE(
-            (SELECT COUNT(*) FROM visits WHERE tag_id = t.id AND date(visit_time) = ?),
-            0
+          (
+            SELECT COALESCE(SUM(
+              CASE 
+                WHEN source = 'history' THEN count
+                ELSE 1
+              END
+            ), 0)
+            FROM (
+              SELECT 'history' as source, count as count
+              FROM history_stats
+              WHERE tag_id = t.id
+              UNION ALL
+              SELECT 'visits' as source, 1 as count
+              FROM visits
+              WHERE tag_id = t.id
+            )
           ) as total_hits,
-          COALESCE(
-            (SELECT COUNT(*) FROM visits WHERE tag_id = t.id AND date(visit_time) = ?),
-            0
+          (
+            SELECT COUNT(*) 
+            FROM visits 
+            WHERE tag_id = t.id 
+            AND date(visit_time) = ?
           ) as today_hits
         FROM tags t
         ORDER BY total_hits DESC
-      `).bind(today, today).all();
+      `).bind(today).all();
 
       // HTML template for overview page
       const overviewHtml = `
@@ -176,20 +185,35 @@ export default {
       VALUES (?, ?)
     `).bind(tagId, currentUTCPlus8Date).run();
 
-    // Get statistics
-    const historicalHits = (await db.prepare(`
-      SELECT COALESCE(SUM(count), 0) as count 
-      FROM history_stats 
-      WHERE tag_id = ?
-    `).bind(tagId).first())?.count || 0;
+    const stats = await db.prepare(`
+      SELECT 
+        (
+          SELECT COALESCE(SUM(
+            CASE 
+              WHEN source = 'history' THEN count
+              ELSE 1
+            END
+          ), 0)
+          FROM (
+            SELECT 'history' as source, count as count
+            FROM history_stats
+            WHERE tag_id = ?
+            UNION ALL
+            SELECT 'visits' as source, 1 as count
+            FROM visits
+            WHERE tag_id = ?
+          )
+        ) as total_hits,
+        (
+          SELECT COUNT(*) 
+          FROM visits 
+          WHERE tag_id = ? 
+          AND date(visit_time) = ?
+        ) as today_hits
+    `).bind(tagId, tagId, tagId, today).first();
 
-    const todayHits = (await db.prepare(`
-      SELECT COUNT(*) as count 
-      FROM visits 
-      WHERE tag_id = ? AND date(visit_time) = ?
-    `).bind(tagId, today).first())?.count || 0;
-
-    const totalHits = historicalHits + todayHits;
+    const totalHits = stats.total_hits;
+    const todayHits = stats.today_hits;
 
     // Get daily statistics for the last 30 days
     const dailyStats = await db.prepare(`
