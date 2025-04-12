@@ -52,11 +52,10 @@ export default {
 
     await db.prepare(`
       CREATE TABLE IF NOT EXISTS history_stats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
         tag_id INTEGER,
         date TEXT,
         count INTEGER,
-        UNIQUE(tag_id, date),
+        PRIMARY KEY(tag_id, date),
         FOREIGN KEY (tag_id) REFERENCES tags(id)
       )
     `).run();
