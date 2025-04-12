@@ -4,10 +4,6 @@ export default {
     const tag = url.searchParams.get('tag');
     const isWeb = url.searchParams.get('web') === 'true';
 
-    if (!tag && !isWeb) {
-      return new Response('Tag parameter is required', { status: 400 });
-    }
-
     const currentDate = new Date();
     const utcTime = currentDate.getTime();
     const utcPlus8Time = utcTime + (8 * 60 * 60 * 1000);
@@ -59,7 +55,7 @@ export default {
       )
     `).run();
 
-    if (!tag && isWeb) {
+    if (!tag && isWeb || !tag && !isWeb) {
       const allTagsStats = await db.prepare(`
         SELECT 
           t.tag,
