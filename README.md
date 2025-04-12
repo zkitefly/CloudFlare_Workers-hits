@@ -55,6 +55,8 @@ https://your-worker.username.workers.dev/?web=true
 
 [演示](https://hits.zkitefly.eu.org/?tag=https://github.com/zkitefly/CloudFlare_Workers-hits&web=true)
 
+[总览演示](https://hits.zkitefly.eu.org/?web=true)
+
 ## 部署说明
 
 1.拷贝 [workers.js](/workers.js) 的所有完整代码；
