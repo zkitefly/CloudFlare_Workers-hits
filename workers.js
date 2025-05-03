@@ -220,8 +220,42 @@ export default {
       ORDER BY date(visit_time)
     `).bind(tagId, today).all();
 
+    // Get hourly distribution with date parameter
+    const getHourlyStats = async (selectedDate) => {
+      return await db.prepare(`
+        SELECT 
+          strftime('%H', visit_time) as hour,
+          COUNT(*) as count
+        FROM visits 
+        WHERE tag_id = ? 
+          AND date(visit_time) = ?
+        GROUP BY strftime('%H', visit_time)
+        ORDER BY hour
+      `).bind(tagId, selectedDate).all();
+    };
+
     if (isWeb) {
-      // HTML template for web view
+      // 处理日期参数
+      const dateParam = url.searchParams.get('date');
+      let selectedDate = today;
+      
+      // 验证日期参数是否合法
+      if (dateParam) {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (dateRegex.test(dateParam)) {
+          const paramDate = new Date(dateParam);
+          const minDate = new Date(utcPlus8Time - 30 * 24 * 60 * 60 * 1000);
+          const maxDate = new Date(utcPlus8Time);
+          
+          if (paramDate >= minDate && paramDate <= maxDate) {
+            selectedDate = dateParam;
+          }
+        }
+      }
+
+      // 获取选定日期的小时统计
+      const hourlyStats = await getHourlyStats(selectedDate);
+
       const html = `
 <!DOCTYPE html>
 <html>
@@ -234,6 +268,17 @@ export default {
         .chart-container { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         h1 { color: #333; }
         .stat-box { display: inline-block; padding: 15px; margin: 10px; background: white; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h2 { color: #666; font-size: 1.2em; margin-top: 20px; }
+        .date-selector {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        select, input { 
+            padding: 5px;
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
@@ -249,9 +294,23 @@ export default {
         </div>
     </div>
     <div class="chart-container">
+        <h2>每日访问趋势</h2>
         <canvas id="visitsChart"></canvas>
     </div>
+    <div class="chart-container">
+        <h2>访问时段分布 (${selectedDate})</h2>
+        <div class="date-selector">
+            <label>选择日期：</label>
+            <input type="date" id="dateSelector" 
+                   value="${selectedDate}"
+                   max="${today}"
+                   min="${new Date(utcPlus8Time - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}">
+            <button id="updateDate">确定</button>
+        </div>
+        <canvas id="hourlyChart"></canvas>
+    </div>
     <script>
+        // 每日访问趋势图
         const ctx = document.getElementById('visitsChart').getContext('2d');
         new Chart(ctx, {
             type: 'line',
@@ -273,6 +332,54 @@ export default {
                     }
                 }
             }
+        });
+
+        // 时段分布图初始化
+        let hourlyChart;
+        const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+        
+        function createHourlyChart(data) {
+            if (hourlyChart) {
+                hourlyChart.destroy();
+            }
+            
+            hourlyChart = new Chart(hourlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(row => row.hour + '时'),
+                    datasets: [{
+                        label: '访问次数',
+                        data: data.map(row => row.count),
+                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                        borderColor: 'rgb(75, 192, 192)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '24小时访问分布'
+                        }
+                    }
+                }
+            });
+        }
+
+        createHourlyChart(${JSON.stringify(hourlyStats.results)});
+
+        // 处理日期选择
+        document.getElementById('updateDate').addEventListener('click', () => {
+            const selectedDate = document.getElementById('dateSelector').value;
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('date', selectedDate);
+            window.location.href = currentUrl.toString();
         });
     </script>
 </body>
