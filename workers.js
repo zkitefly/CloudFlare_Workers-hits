@@ -404,7 +404,8 @@ export default {
         'X-Total-Hits': totalHits.toString(),
         'X-Today-Hits': todayHits.toString(),
         'X-Record-Time': currentUTCPlus8Date.toString(),
-        'X-Tag': tag
+        'X-Tag': tag,
+        'Access-Control-Expose-Headers': 'X-Total-Hits X-Today-Hits X-Record-Time X-Tag'
       }
     });
   }
