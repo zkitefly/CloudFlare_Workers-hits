@@ -3,6 +3,7 @@ export default {
     const url = new URL(request.url);
     const tag = url.searchParams.get('tag');
     const isWeb = url.searchParams.get('web') === 'true';
+    const format = url.searchParams.get('format');
 
     const currentDate = new Date();
     const utcTime = currentDate.getTime();
@@ -210,6 +211,21 @@ export default {
 
     const totalHits = stats.total_hits;
     const todayHits = stats.today_hits;
+
+    if (format === 'json') {
+      return new Response(JSON.stringify({
+        'total-hits': totalHits,
+        'today-hits': todayHits,
+        'tag': tag,
+        'record-time': currentUTCPlus8Date
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
 
     // Get daily statistics for the last 30 days
     const dailyStats = await db.prepare(`
